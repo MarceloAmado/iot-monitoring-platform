@@ -1,0 +1,227 @@
+# ============================================================
+# Sistema de Monitoreo IoT
+# Docker Compose - Configuración Completa
+# ============================================================
+# Descripción: Orquestación de servicios para el sistema IoT
+# Servicios: PostgreSQL, Redis, Backend (FastAPI), Frontend (React)
+# ============================================================
+
+version: '3.8'
+
+services:
+  # ============================================================
+  # PostgreSQL 15 - Base de Datos Principal
+  # ============================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: iot_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      # Configuración de encoding para soportar caracteres en español
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=es_AR.UTF-8"
+    volumes:
+      # Persistencia de datos
+      - postgres_data:/var/lib/postgresql/data
+      # Scripts de inicialización (si los necesitamos)
+      # - ./backend/scripts/init_db.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - iot_network
+
+  # ============================================================
+  # Redis 7 - Cache y Gestión de Sesiones
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: iot_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - iot_network
+
+  # ============================================================
+  # Mosquitto MQTT Broker - Telemetría de Dispositivos (SCADA)
+  # ============================================================
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: iot_mosquitto
+    restart: unless-stopped
+    volumes:
+      # Configuración
+      - ./backend/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./backend/mosquitto/config/passwords.txt:/mosquitto/config/passwords.txt
+      - ./backend/mosquitto/config/acl.txt:/mosquitto/config/acl.txt:ro
+      # Persistencia de datos
+      - mosquitto_data:/mosquitto/data
+      # Logs
+      - mosquitto_log:/mosquitto/log
+    ports:
+      # Puerto MQTT nativo (para ESP32)
+      - "1883:1883"
+      # Puerto WebSocket (para frontend)
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -u iot_monitor -P 'CHANGE_ME_MONITOR_PASSWORD' -t '$$SYS/#' -C 1 -W 3 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - iot_network
+
+  # ============================================================
+  # Backend FastAPI - API REST
+  # ============================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: iot_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    environment:
+      # Base de datos
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: postgres
+      DB_PORT: 5432
+
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+
+      # JWT y Seguridad
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+
+      # FastAPI
+      # API_V1_PREFIX: ${API_V1_PREFIX}  # Comentado: Git Bash en Windows convierte /api/v1 a C:/Program Files/Git/api/v1
+      PROJECT_NAME: ${PROJECT_NAME}
+      VERSION: ${VERSION}
+      ENVIRONMENT: ${ENVIRONMENT}
+
+      # CORS
+      CORS_ORIGINS: ${CORS_ORIGINS}
+
+      # Logs
+      LOG_LEVEL: ${LOG_LEVEL}
+
+      # Notificaciones (opcional)
+      SMTP_ENABLED: ${SMTP_ENABLED}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME}
+
+      TELEGRAM_ENABLED: ${TELEGRAM_ENABLED}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+
+      # Security
+      DEVICE_API_KEY_SALT: ${DEVICE_API_KEY_SALT}
+
+      # SCADA - Encriptación
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+
+      # SCADA - MQTT
+      MQTT_BROKER_HOST: ${MQTT_BROKER_HOST}
+      MQTT_BROKER_PORT: ${MQTT_BROKER_PORT}
+      MQTT_BROKER_WS_PORT: ${MQTT_BROKER_WS_PORT}
+      MQTT_USERNAME: ${MQTT_USERNAME}
+      # La password vive en .env (gitignoreado). Evitar '!' en el valor:
+      # Git Bash en Windows lo expande mal en variables de entorno.
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+      MQTT_CLIENT_ID: ${MQTT_CLIENT_ID}
+    ports:
+      - "8000:8000"
+    volumes:
+      # Hot reload en desarrollo (comentar en producción)
+      - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
+      - ./backend/scripts:/app/scripts
+      - ./backend/tests:/app/tests
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - iot_network
+
+  # ============================================================
+  # Frontend React + Vite (Desarrollo)
+  # ============================================================
+  # Nota: En producción, usar build estático servido por Nginx
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: iot_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+      VITE_APP_NAME: ${VITE_APP_NAME}
+      VITE_ENVIRONMENT: ${VITE_ENVIRONMENT}
+    ports:
+      - "3000:3000"
+    volumes:
+      # Hot reload en desarrollo
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+      # Evitar montar node_modules (usar los del container)
+      - /app/node_modules
+    networks:
+      - iot_network
+
+# ============================================================
+# Volúmenes Persistentes
+# ============================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  mosquitto_data:
+    driver: local
+  mosquitto_log:
+    driver: local
+
+# ============================================================
+# Red Interna
+# ============================================================
+networks:
+  iot_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

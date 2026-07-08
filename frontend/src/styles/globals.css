@@ -1,0 +1,382 @@
+/**
+ * Global Styles - IdeaMakers IoT Monitoring
+ *
+ * Sistema de diseño basado en tokens IdeaMakers
+ * Fuentes: Montserrat (headings) + Open Sans (body)
+ *
+ * @see ../../../design-tokens.json
+ * @see ../../../tailwind.config.ts
+ */
+
+/* ========================================
+   TAILWIND DIRECTIVES
+   ======================================== */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================
+   GOOGLE FONTS IMPORT
+   ======================================== */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;600&display=swap');
+
+/* ========================================
+   CSS CUSTOM PROPERTIES (Design Tokens)
+   ======================================== */
+@layer base {
+  :root {
+    /* Brand Colors */
+    --im-blue: #0F3C57;
+    --im-blue-hover: #0a2d42;
+    --im-blue-light: #1a5170;
+    --im-orange: #F57C20;
+    --im-orange-hover: #e66e12;
+    --im-orange-soft: #F9A45C;
+
+    /* Background */
+    --im-bg: #F5F5F5;
+    --im-white: #FFFFFF;
+
+    /* Neutrals */
+    --im-neutral-900: #0B1B26;
+    --im-neutral-700: #556E7A;
+    --im-neutral-500: #9AA9B3;
+    --im-neutral-300: #D6E0E6;
+    --im-neutral-100: #F0F4F7;
+
+    /* Status */
+    --im-success: #2FB46E;
+    --im-warning: #F2C037;
+    --im-danger: #E04B4B;
+    --im-info: #4A90E2;
+
+    /* Shadows */
+    --shadow-card: 0 6px 18px rgba(15, 60, 87, 0.08);
+    --shadow-card-hover: 0 8px 24px rgba(15, 60, 87, 0.12);
+    --shadow-modal: 0 20px 60px rgba(15, 60, 87, 0.25);
+    --shadow-focus: 0 0 0 3px rgba(245, 124, 32, 0.15);
+
+    /* Transitions */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Layout */
+    --sidebar-expanded: 280px;
+    --sidebar-collapsed: 72px;
+    --topbar-height: 64px;
+  }
+
+  /* Preparación para modo oscuro (disabled por ahora) */
+  /* .dark {
+    --im-bg: #0B1B26;
+    --im-white: #1a2936;
+    --im-neutral-900: #F5F5F5;
+  } */
+}
+
+/* ========================================
+   BASE STYLES
+   ======================================== */
+@layer base {
+  /* Body defaults */
+  body {
+    @apply bg-im-bg text-im-neutral-900 antialiased;
+    font-family: 'Open Sans', ui-sans-serif, system-ui;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Typography hierarchy */
+  h1 {
+    @apply font-montserrat text-4xl font-bold text-im-blue;
+    line-height: 1.25;
+  }
+
+  h2 {
+    @apply font-montserrat text-2xl font-bold text-im-blue;
+    line-height: 1.25;
+  }
+
+  h3 {
+    @apply font-montserrat text-xl font-semibold text-im-blue;
+    line-height: 1.5;
+  }
+
+  h4 {
+    @apply font-montserrat text-lg font-semibold text-im-neutral-900;
+    line-height: 1.5;
+  }
+
+  h5 {
+    @apply font-montserrat text-base font-semibold text-im-neutral-700;
+    line-height: 1.5;
+  }
+
+  h6 {
+    @apply font-montserrat text-sm font-semibold text-im-neutral-700;
+    line-height: 1.5;
+  }
+
+  p {
+    @apply text-base text-im-neutral-700;
+  }
+
+  /* Links */
+  a {
+    @apply text-im-orange hover:text-im-orange-hover transition-colors duration-200;
+  }
+
+  /* Focus visible (accesibilidad) */
+  *:focus-visible {
+    @apply outline-none ring-4 ring-im-orange-soft/30;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-im-orange-soft text-white;
+  }
+
+  /* Scrollbar personalizado (Chrome/Safari) */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-im-neutral-100;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-im-neutral-300 rounded-full hover:bg-im-neutral-500;
+  }
+}
+
+/* ========================================
+   COMPONENT CLASSES (Utilities reusables)
+   ======================================== */
+@layer components {
+  /* ======== Buttons ======== */
+  .im-btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md font-semibold transition-all duration-200 focus:outline-none focus:ring-4 active:scale-95;
+  }
+
+  .im-btn-primary {
+    @apply im-btn bg-im-orange text-white hover:bg-im-orange-hover focus:ring-im-orange-soft/30;
+  }
+
+  .im-btn-secondary {
+    @apply im-btn bg-white border border-im-blue text-im-blue hover:bg-im-blue/5 focus:ring-im-blue/20;
+  }
+
+  .im-btn-ghost {
+    @apply im-btn bg-transparent text-im-blue hover:bg-im-blue/5 focus:ring-im-blue/20;
+  }
+
+  .im-btn-danger {
+    @apply im-btn bg-im-danger text-white hover:brightness-90 focus:ring-im-danger/30;
+  }
+
+  .im-btn-sm {
+    @apply px-3 py-1 text-sm;
+  }
+
+  .im-btn-md {
+    @apply px-4 py-2 text-base;
+  }
+
+  .im-btn-lg {
+    @apply px-5 py-3 text-lg;
+  }
+
+  .im-btn:disabled {
+    @apply opacity-50 pointer-events-none;
+  }
+
+  /* ======== Cards ======== */
+  .im-card {
+    @apply bg-white rounded-md p-4 shadow-im-card transition-shadow duration-200;
+  }
+
+  .im-card-hover {
+    @apply im-card hover:shadow-im-card-hover;
+  }
+
+  .im-card-header {
+    @apply mb-4 pb-4 border-b border-im-neutral-100;
+  }
+
+  .im-card-footer {
+    @apply mt-4 pt-4 border-t border-im-neutral-100;
+  }
+
+  /* ======== Inputs ======== */
+  .im-input {
+    @apply w-full px-3 py-2 border border-im-neutral-300 rounded-md text-im-neutral-900 placeholder:text-im-neutral-500 focus:outline-none focus:ring-4 focus:ring-im-orange-soft/30 focus:border-im-orange transition-all duration-200;
+  }
+
+  .im-input-error {
+    @apply im-input border-im-danger focus:ring-im-danger/30 focus:border-im-danger;
+  }
+
+  .im-label {
+    @apply block text-sm font-semibold text-im-neutral-900 mb-1;
+  }
+
+  .im-helper-text {
+    @apply text-xs text-im-neutral-500 mt-1;
+  }
+
+  .im-error-text {
+    @apply text-xs text-im-danger mt-1;
+  }
+
+  /* ======== Badges / Pills ======== */
+  .im-badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+
+  .im-badge-success {
+    @apply im-badge bg-im-success-light text-im-success;
+  }
+
+  .im-badge-warning {
+    @apply im-badge bg-im-warning-light text-im-warning;
+  }
+
+  .im-badge-danger {
+    @apply im-badge bg-im-danger-light text-im-danger;
+  }
+
+  .im-badge-info {
+    @apply im-badge bg-im-info-light text-im-info;
+  }
+
+  .im-badge-neutral {
+    @apply im-badge bg-im-neutral-100 text-im-neutral-700;
+  }
+
+  /* Status pills específicos de devices */
+  .im-status-online {
+    @apply im-badge bg-im-success-light text-im-success;
+  }
+
+  .im-status-offline {
+    @apply im-badge bg-im-neutral-100 text-im-neutral-500;
+  }
+
+  .im-status-maintenance {
+    @apply im-badge bg-im-warning-light text-im-warning;
+  }
+
+  .im-status-error {
+    @apply im-badge bg-im-danger-light text-im-danger;
+  }
+
+  /* ======== Tables ======== */
+  .im-table {
+    @apply w-full border-collapse;
+  }
+
+  .im-table th {
+    @apply bg-im-neutral-100 px-4 py-3 text-left text-xs font-semibold text-im-neutral-700 uppercase tracking-wider;
+  }
+
+  .im-table td {
+    @apply px-4 py-3 text-sm text-im-neutral-900 border-b border-im-neutral-100;
+  }
+
+  .im-table tbody tr {
+    @apply hover:bg-im-neutral-100/50 transition-colors duration-150;
+  }
+
+  /* ======== Modals ======== */
+  .im-modal-overlay {
+    @apply fixed inset-0 bg-black/50 z-modal flex items-center justify-center p-4;
+  }
+
+  .im-modal-content {
+    @apply bg-white rounded-md shadow-im-modal max-w-2xl w-full max-h-[90vh] overflow-y-auto;
+  }
+
+  /* ======== Toasts ======== */
+  .im-toast {
+    @apply fixed bottom-4 right-4 z-toast max-w-md bg-white rounded-md shadow-im-modal p-4 animate-slide-up;
+  }
+
+  /* ======== Loading Skeletons ======== */
+  .im-skeleton {
+    @apply bg-im-neutral-100 animate-pulse rounded-md;
+  }
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+@layer utilities {
+  /* Truncate multi-line */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Hide scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Glassmorphism effect */
+  .glass {
+    @apply bg-white/80 backdrop-blur-md;
+  }
+}
+
+/* ========================================
+   ANIMATIONS & TRANSITIONS
+   ======================================== */
+@layer utilities {
+  /* Hover lift effect */
+  .hover-lift {
+    @apply transition-transform duration-200 hover:-translate-y-1;
+  }
+
+  /* Pulse effect for notifications */
+  .pulse-notification {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+@media print {
+  body {
+    @apply bg-white text-black;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

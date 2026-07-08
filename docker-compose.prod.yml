@@ -1,0 +1,258 @@
+version: '3.8'
+
+# ============================================
+# Docker Compose - Configuración de Producción
+# Sistema IoT Monitoring
+# ============================================
+
+services:
+  # ==========================================
+  # PostgreSQL 15 - Base de Datos Principal
+  # ==========================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: iot_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=C"
+      TZ: UTC
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"  # Solo accesible desde localhost
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - iot_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ==========================================
+  # Redis 7 - Cache y Sesiones
+  # ==========================================
+  redis:
+    image: redis:7-alpine
+    container_name: iot_redis
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "127.0.0.1:6379:6379"  # Solo accesible desde localhost
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - iot_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ==========================================
+  # Mosquitto - MQTT Broker
+  # ==========================================
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: iot_mosquitto
+    restart: always
+    ports:
+      - "1883:1883"  # MQTT
+      - "127.0.0.1:9001:9001"  # WebSocket (solo localhost)
+    volumes:
+      - ./backend/mosquitto/config:/mosquitto/config
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+    networks:
+      - iot_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ==========================================
+  # Backend - FastAPI
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        ENVIRONMENT: production
+    container_name: iot_backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      # JWT
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+
+      # API
+      API_V1_PREFIX: /api/v1
+      ENVIRONMENT: production
+      DEBUG: false
+
+      # CORS
+      CORS_ORIGINS: ${CORS_ORIGINS}
+
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+      # MQTT
+      MQTT_BROKER_HOST: mosquitto
+      MQTT_BROKER_PORT: 1883
+      MQTT_USERNAME: ${MQTT_USERNAME:-iot_backend}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-CHANGE_ME_MQTT_PASSWORD}
+      MQTT_TOPIC_PREFIX: ${MQTT_TOPIC_PREFIX:-iot}
+
+      # Email (opcional)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@iot-monitoring.com}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-IoT Monitoring System}
+
+      # Telegram (opcional)
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+
+      # Timezone
+      TZ: UTC
+    ports:
+      - "127.0.0.1:8000:8000"  # Solo accesible desde localhost (Nginx hace proxy)
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - iot_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+    # Limitar recursos (ajustar según tu VPS)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ==========================================
+  # Frontend - React + Vite
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_APP_NAME: ${VITE_APP_NAME:-IoT Monitoring System}
+        VITE_ENVIRONMENT: production
+    container_name: iot_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "127.0.0.1:3000:80"  # Solo accesible desde localhost (Nginx hace proxy)
+    networks:
+      - iot_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+    # Limitar recursos
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+# ==========================================
+# Volúmenes Persistentes
+# ==========================================
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/iot-monitoring/data/postgres
+
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/iot-monitoring/data/redis
+
+  mosquitto_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/iot-monitoring/data/mosquitto/data
+
+  mosquitto_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/iot-monitoring/data/mosquitto/logs
+
+# ==========================================
+# Red Interna
+# ==========================================
+networks:
+  iot_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16

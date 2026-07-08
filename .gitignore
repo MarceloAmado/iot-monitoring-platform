@@ -1,0 +1,197 @@
+# ============================================================
+# Sistema de Monitoreo IoT
+# Archivo .gitignore
+# ============================================================
+
+# ============================================================
+# Variables de Entorno y Secretos
+# ============================================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+
+# ============================================================
+# Python
+# ============================================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Alembic
+alembic/versions/*.pyc
+
+# ============================================================
+# Node.js / Frontend
+# ============================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
+dist/
+dist-ssr/
+*.local
+
+# Frontend environment
+.env.production
+
+# ============================================================
+# Docker
+# ============================================================
+# No ignorar docker-compose.yml ni Dockerfiles
+# Pero sí ignorar archivos de runtime
+*.pid
+*.seed
+*.pid.lock
+
+# ============================================================
+# Base de Datos
+# ============================================================
+# Archivos locales de PostgreSQL
+*.db
+*.sqlite
+*.sqlite3
+pgdata/
+postgres_data/
+redis_data/
+
+# Backups
+*.sql
+*.dump
+backups/
+
+# ============================================================
+# Logs
+# ============================================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================================
+# Sistema Operativo
+# ============================================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+
+# ============================================================
+# Firmware / PlatformIO
+# ============================================================
+.pio/
+.platformio/
+.pioenvs/
+.piolibdeps/
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+
+# ============================================================
+# Documentación Generada
+# ============================================================
+site/
+docs/_build/
+
+# ============================================================
+# Archivos Temporales
+# ============================================================
+*.tmp
+*.temp
+*.swp
+*.bak
+*.orig
+
+# ============================================================
+# Datos de Testing
+# ============================================================
+test_data/
+.test_db/
+
+# ============================================================
+# Tokens y credenciales temporales (nunca versionar)
+# ============================================================
+temp_token.json
+*.token.json
+
+# Credenciales Mosquitto (regenerar con backend/scripts/mqtt_user_manager)
+backend/mosquitto/config/passwords.txt

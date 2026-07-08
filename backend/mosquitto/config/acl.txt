@@ -1,0 +1,81 @@
+# ============================================================
+# Mosquitto ACL (Access Control List)
+# ============================================================
+# Formato:
+#   user <username>
+#   topic [read|write|readwrite] <topic>
+#
+# Wildcards:
+#   + = un nivel (ej: iot/+/devices)
+#   # = múltiples niveles (ej: iot/#)
+#
+# Estructura de tópicos:
+#   iot/{org_id}/devices/{device_eui}/telemetry
+#   iot/{org_id}/devices/{device_eui}/heartbeat
+#   iot/{org_id}/devices/{device_eui}/status
+#   iot/{org_id}/devices/{device_eui}/config
+#   iot/{org_id}/devices/{device_eui}/command
+#   iot/system/status
+#   iot/system/alerts
+
+# ============================================================
+# Usuario: iot_backend (Backend FastAPI)
+# ============================================================
+# Permisos: Lectura/Escritura completa en todos los tópicos
+user iot_backend
+
+# Puede leer y escribir en TODOS los tópicos del sistema
+topic readwrite iot/#
+
+# Puede acceder a estadísticas del sistema ($SYS)
+topic read $SYS/#
+
+# ============================================================
+# Usuario: iot_device (Dispositivos ESP32)
+# ============================================================
+# Permisos: Puede publicar en todos los topics de IoT (simplificado para testing)
+user iot_device
+
+# Puede escribir en todos los tópicos iot/* (para testing)
+# En producción, cada device debería tener su propio usuario con ACL específico
+topic write iot/#
+
+# Puede leer configuraciones y comandos
+topic read iot/#
+
+# NO puede escribir comandos ni configuraciones (seguridad)
+# NO puede leer datos de otros dispositivos
+
+# ============================================================
+# Usuario: iot_monitor (Solo Lectura - Monitoreo)
+# ============================================================
+# Permisos: Solo lectura para dashboards externos
+user iot_monitor
+
+# Puede leer todos los datos de telemetría
+topic read iot/#
+
+# Puede leer estadísticas del sistema
+topic read $SYS/#
+
+# NO puede escribir nada (usuario read-only)
+
+# ============================================================
+# Patrón: iot_device_<device_eui> (Futuro - Por Device)
+# ============================================================
+# En el futuro, cada ESP32 tendrá su propio usuario MQTT
+# Ejemplo para device ESP32_LAB_001:
+#
+# user iot_device_ESP32_LAB_001
+# topic write iot/+/devices/ESP32_LAB_001/telemetry
+# topic write iot/+/devices/ESP32_LAB_001/heartbeat
+# topic write iot/+/devices/ESP32_LAB_001/status
+# topic read iot/+/devices/ESP32_LAB_001/config
+# topic read iot/+/devices/ESP32_LAB_001/command
+
+# ============================================================
+# Deny All (Seguridad por Defecto)
+# ============================================================
+# Usuarios no listados arriba NO tienen acceso a nada
+# Esta es la política de seguridad por defecto de Mosquitto
+# cuando allow_anonymous = false

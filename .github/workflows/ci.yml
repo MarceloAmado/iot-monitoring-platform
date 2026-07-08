@@ -1,0 +1,138 @@
+# CI - Sistema de Monitoreo IoT
+#
+# Tres jobs independientes:
+#   backend  : pytest contra PostgreSQL 15 + Redis 7 (service containers)
+#   frontend : eslint + typecheck + vitest + build de producción
+#   firmware : compilación PlatformIO del env esp32dev
+#
+# Las credenciales de este archivo son EXCLUSIVAS de CI (DB efímera del
+# runner); no corresponden a ningún entorno real.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: iot_admin
+          POSTGRES_PASSWORD: ci_test_password_123
+          POSTGRES_DB: iot_monitoring
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U iot_admin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Config mínima que exige app/core/config.py (solo para CI)
+      DB_HOST: localhost
+      DB_PORT: "5432"
+      DB_USER: iot_admin
+      DB_PASSWORD: ci_test_password_123
+      DB_NAME: iot_monitoring
+      DATABASE_URL: postgresql://iot_admin:ci_test_password_123@localhost:5432/iot_monitoring
+      REDIS_HOST: localhost
+      REDIS_PORT: "6379"
+      JWT_SECRET_KEY: ci_only_jwt_secret_key_with_more_than_32_chars
+      ENCRYPTION_KEY: fXbF1ghQWDgyp85ABYamin0wlkXcnGHj_2Ir-7XA-E4=
+      DEVICE_API_KEY_SALT: ci_only_device_salt
+      SMTP_ENABLED: "false"
+      ENVIRONMENT: testing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Correr tests
+        run: python -m pytest -v --tb=short
+
+  frontend:
+    name: Frontend (lint + typecheck + tests + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  firmware:
+    name: Firmware (PlatformIO)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firmware/esp32-sensor
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+          key: platformio-${{ runner.os }}-${{ hashFiles('firmware/esp32-sensor/platformio.ini') }}
+
+      - name: Instalar PlatformIO
+        run: pip install platformio
+
+      - name: Compilar esp32dev
+        run: pio run -e esp32dev
