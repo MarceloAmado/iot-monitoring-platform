@@ -26,8 +26,12 @@ sio = socketio.AsyncServer(
     engineio_logger=False,
 )
 
-# ASGI app para montar en FastAPI
-socket_app = socketio.ASGIApp(sio, socketio_path="/ws/socket.io")
+# ASGI app para montar en FastAPI bajo /ws (main.py hace app.mount("/ws", ...)).
+# El socketio_path es RELATIVO al mount: Starlette recorta el prefijo /ws antes
+# de pasar el scope, así que la URL final queda /ws/socket.io (la que usa el
+# frontend). Con "/ws/socket.io" acá los paths nunca matcheaban y el handshake
+# WebSocket devolvía 500.
+socket_app = socketio.ASGIApp(sio, socketio_path="socket.io")
 
 
 # ============================================

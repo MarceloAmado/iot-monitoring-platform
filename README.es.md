@@ -12,6 +12,18 @@
 
 > Plataforma SCADA-lite modular y escalable para monitoreo en tiempo real de sensores IoT con alertas automáticas, RBAC por ubicación y visualización dinámica de datos.
 
+## Capturas de Pantalla
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+| Detalle de dispositivo en tiempo real | Reglas e historial de alertas |
+|---|---|
+| ![Detalle de dispositivo](docs/screenshots/device-detail.png) | ![Alertas](docs/screenshots/alerts.png) |
+
+| Gestión de firmware OTA | Ubicaciones y activos |
+|---|---|
+| ![Firmware OTA](docs/screenshots/firmware-ota.png) | ![Ubicaciones](docs/screenshots/locations.png) |
+
 ## Descripcion
 
 Sistema genérico y reutilizable para monitoreo de sensores en entornos industriales, hospitalarios, comerciales y residenciales. Arquitectura moderna basada en FastAPI + React + PostgreSQL + Redis + MQTT + ESP32.

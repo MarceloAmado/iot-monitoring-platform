@@ -16,6 +16,9 @@ from app.models.sensor_reading import SensorReading
 from app.models.user import User
 from app.models.alert import AlertRule, AlertHistory
 from app.models.password_reset import PasswordResetToken
+from app.models.sensor_catalog import SensorCatalog
+from app.models.audit_log import AuditLog
+from app.models.firmware import Firmware
 
 __all__ = [
     "LocationGroup",
@@ -27,4 +30,7 @@ __all__ = [
     "AlertRule",
     "AlertHistory",
     "PasswordResetToken",
+    "SensorCatalog",
+    "AuditLog",
+    "Firmware",
 ]

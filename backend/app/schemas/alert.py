@@ -17,7 +17,9 @@ class AlertRuleBase(BaseModel):
     device_id: Optional[int] = Field(None, description="ID de device (NULL = todos)")
     name: str = Field(..., max_length=128, description="Nombre descriptivo")
     check_type: str = Field(..., max_length=32, description="THRESHOLD_ABOVE, THRESHOLD_BELOW, etc.")
-    variable_key: str = Field(..., max_length=64, description="Key del JSONB: temp_c, humidity_pct")
+    # Nullable: las reglas DEVICE_OFFLINE no monitorean una variable
+    # (la migración e5bf88e49fde ya lo permite en la DB)
+    variable_key: Optional[str] = Field(None, max_length=64, description="Key del JSONB: temp_c, humidity_pct")
     threshold_value: Optional[float] = Field(None, description="Valor umbral")
     threshold_min: Optional[float] = Field(None, description="Valor minimo para RANGE")
     threshold_max: Optional[float] = Field(None, description="Valor maximo para RANGE")

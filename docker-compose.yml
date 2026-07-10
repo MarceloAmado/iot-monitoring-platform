@@ -192,7 +192,10 @@ services:
       VITE_APP_NAME: ${VITE_APP_NAME}
       VITE_ENVIRONMENT: ${VITE_ENVIRONMENT}
     ports:
-      - "3000:3000"
+      # El Dockerfile del frontend construye la SPA y la sirve con nginx
+      # en el puerto 80 del contenedor (el mapeo anterior 3000:3000
+      # apuntaba a un puerto donde nada escuchaba)
+      - "3000:80"
     volumes:
       # Hot reload en desarrollo
       - ./frontend/src:/app/src

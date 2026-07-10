@@ -50,7 +50,15 @@ Full-stack system built end-to-end: **ESP32 firmware** (C++/PlatformIO) → **Fa
 
 ## Screenshots
 
-> Screenshots live in [docs/screenshots](docs/screenshots/). *(Being updated — run the stack locally with the seed data to explore the full UI.)*
+![Dashboard](docs/screenshots/dashboard.png)
+
+| Real-time device detail | Alert rules & history |
+|---|---|
+| ![Device detail](docs/screenshots/device-detail.png) | ![Alerts](docs/screenshots/alerts.png) |
+
+| OTA firmware management | Locations & assets |
+|---|---|
+| ![Firmware OTA](docs/screenshots/firmware-ota.png) | ![Locations](docs/screenshots/locations.png) |
 
 ## Quickstart
 
