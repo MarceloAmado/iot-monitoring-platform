@@ -330,38 +330,129 @@ class TestDeviceSchema:
 # ============================================================
 
 class TestDeviceHeartbeat:
-    """Tests para POST /api/v1/devices/heartbeat"""
+    """Tests para POST /api/v1/devices/heartbeat
+
+    Desde 2026-07-11 el heartbeat exige el mismo contrato de autenticación
+    que POST /readings: headers X-API-Key + X-Device-EUI.
+    """
+
+    HEARTBEAT_API_KEY = "test_heartbeat_key_123"
+
+    @pytest.fixture
+    def heartbeat_device(self, db_session: Session, asset) -> Device:
+        """Device con API key para autenticar heartbeats."""
+        device_obj = Device(
+            asset_id=asset.id,
+            device_eui="ESP32_HB_001",
+            name="ESP32 Heartbeat Test",
+            status="active",
+            firmware_version="v1.0.0",
+            api_key=self.HEARTBEAT_API_KEY,
+            config={},
+            extra_data={},
+        )
+        db_session.add(device_obj)
+        db_session.commit()
+        db_session.refresh(device_obj)
+        return device_obj
+
+    @pytest.fixture
+    def heartbeat_headers(self, heartbeat_device: Device) -> dict:
+        return {
+            "X-API-Key": self.HEARTBEAT_API_KEY,
+            "X-Device-EUI": heartbeat_device.device_eui,
+        }
 
     def test_heartbeat_success(
-        self, client: TestClient, device: Device, db_session: Session
+        self,
+        client: TestClient,
+        heartbeat_device: Device,
+        heartbeat_headers: dict,
+        db_session: Session,
     ):
-        """Heartbeat actualiza last_seen_at."""
+        """Heartbeat autenticado actualiza last_seen_at y firmware_version."""
         payload = {
-            "device_eui": device.device_eui,
+            "device_eui": heartbeat_device.device_eui,
             "firmware_version": "v1.1.0",
             "metadata": {"rssi_dbm": -55, "uptime_sec": 3600},
         }
 
-        response = client.post("/api/v1/devices/heartbeat", json=payload)
+        response = client.post(
+            "/api/v1/devices/heartbeat", json=payload, headers=heartbeat_headers
+        )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["device_eui"] == device.device_eui
+        assert data["device_eui"] == heartbeat_device.device_eui
         assert data["is_online"] is True
         assert data["message"] == "Heartbeat recibido correctamente"
 
         # Verificar que firmware se actualizó
-        db_session.refresh(device)
-        assert device.firmware_version == "v1.1.0"
+        db_session.refresh(heartbeat_device)
+        assert heartbeat_device.firmware_version == "v1.1.0"
 
-    def test_heartbeat_device_not_found(self, client: TestClient):
-        """Heartbeat con EUI inexistente retorna 404."""
-        payload = {
-            "device_eui": "ESP32_GHOST_999",
-        }
+    def test_heartbeat_missing_device_eui_header(
+        self, client: TestClient, heartbeat_device: Device
+    ):
+        """Regresión ticket X-Device-EUI: solo X-API-Key (firmware viejo) → 422."""
+        payload = {"device_eui": heartbeat_device.device_eui}
+
+        response = client.post(
+            "/api/v1/devices/heartbeat",
+            json=payload,
+            headers={"X-API-Key": self.HEARTBEAT_API_KEY},
+        )
+        assert response.status_code == 422
+
+    def test_heartbeat_without_auth_headers(
+        self, client: TestClient, heartbeat_device: Device
+    ):
+        """Heartbeat sin ningún header de auth (contrato pre-2026-07-11) → 422."""
+        payload = {"device_eui": heartbeat_device.device_eui}
 
         response = client.post("/api/v1/devices/heartbeat", json=payload)
-        assert response.status_code == 404
+        assert response.status_code == 422
+
+    def test_heartbeat_invalid_api_key(
+        self, client: TestClient, heartbeat_device: Device
+    ):
+        """Heartbeat con API key incorrecta → 401."""
+        payload = {"device_eui": heartbeat_device.device_eui}
+
+        response = client.post(
+            "/api/v1/devices/heartbeat",
+            json=payload,
+            headers={
+                "X-API-Key": "clave_incorrecta",
+                "X-Device-EUI": heartbeat_device.device_eui,
+            },
+        )
+        assert response.status_code == 401
+
+    def test_heartbeat_device_not_found(self, client: TestClient):
+        """Heartbeat con EUI inexistente en el header → 401 (auth falla)."""
+        payload = {"device_eui": "ESP32_GHOST_999"}
+
+        response = client.post(
+            "/api/v1/devices/heartbeat",
+            json=payload,
+            headers={
+                "X-API-Key": "cualquier_key",
+                "X-Device-EUI": "ESP32_GHOST_999",
+            },
+        )
+        assert response.status_code == 401
+
+    def test_heartbeat_eui_mismatch(
+        self, client: TestClient, heartbeat_device: Device, heartbeat_headers: dict
+    ):
+        """EUI del body distinto al del header autenticado → 400."""
+        payload = {"device_eui": "ESP32_OTRO_DEVICE"}
+
+        response = client.post(
+            "/api/v1/devices/heartbeat", json=payload, headers=heartbeat_headers
+        )
+        assert response.status_code == 400
 
 
 # ============================================================

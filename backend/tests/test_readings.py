@@ -186,6 +186,28 @@ class TestCreateReading:
 
         assert response.status_code == 422
 
+    def test_create_reading_only_api_key_header(
+        self, client: TestClient, device_with_api_key: Device
+    ):
+        """Regresión ticket X-Device-EUI: el firmware pre-fix mandaba SOLO
+        X-API-Key (el EUI iba en el body) y el backend responde 422.
+
+        Este test documenta el contrato: ambos headers son obligatorios,
+        el EUI del body no alcanza.
+        """
+        payload = {
+            "device_eui": device_with_api_key.device_eui,
+            "data_payload": {"temp_c": 25.0},
+        }
+
+        response = client.post(
+            "/api/v1/readings",
+            json=payload,
+            headers={"X-API-Key": DEVICE_API_KEY},
+        )
+
+        assert response.status_code == 422
+
     def test_create_reading_device_not_found(self, client: TestClient):
         """Device EUI inexistente retorna 401."""
         headers = {

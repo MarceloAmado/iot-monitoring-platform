@@ -109,9 +109,11 @@ public:
         http.begin(url);
         http.setTimeout(HTTP_TIMEOUT_MS);
 
-        // Headers
+        // Headers de autenticación: el backend exige X-API-Key Y X-Device-EUI
+        // (contrato de validate_device_api_key; sin el EUI responde 422)
         http.addHeader("Content-Type", "application/json");
         http.addHeader("X-API-Key", apiKey);
+        http.addHeader("X-Device-EUI", deviceEUI);
         http.addHeader("User-Agent", "ESP32-IoT-Sensor/1.0");
 
         // Enviar POST request
@@ -314,8 +316,11 @@ public:
         http.begin(url);
         http.setTimeout(HTTP_TIMEOUT_MS);
 
-        // Headers
+        // Headers de autenticación: el backend valida el heartbeat con el
+        // mismo contrato que /readings (X-API-Key + X-Device-EUI)
         http.addHeader("Content-Type", "application/json");
+        http.addHeader("X-API-Key", apiKey);
+        http.addHeader("X-Device-EUI", deviceEUI);
         http.addHeader("User-Agent", "ESP32-IoT-Sensor/1.0");
 
         // Enviar POST request
@@ -356,6 +361,9 @@ public:
                 successfulRequests++;
                 success = true;
 
+            } else if (httpCode == 401) {
+                DEBUG_ERROR("[API] Error 401: No autorizado (verificar API Key y Device EUI)");
+                DEBUG_ERROR("[API] El device debe existir en el backend con esa API key");
             } else if (httpCode == 404) {
                 DEBUG_ERROR("[API] Error 404: Device no encontrado");
                 DEBUG_ERROR("[API] Debe crear el device en el backend primero");

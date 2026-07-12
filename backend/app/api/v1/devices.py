@@ -6,7 +6,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import get_db, get_current_active_user, require_admin
+from app.api.deps import get_db, get_current_active_user, require_admin, validate_device_api_key
 from app.models.device import Device
 from app.models.asset import Asset
 from app.models.user import User
@@ -726,6 +726,7 @@ def get_device_health(
 @router.post("/heartbeat", response_model=DeviceHeartbeatResponse, status_code=status.HTTP_200_OK, summary="Heartbeat de device")
 def device_heartbeat(
     heartbeat_data: DeviceHeartbeat,
+    device: Device = Depends(validate_device_api_key),
     db: Session = Depends(get_db)
 ):
     """
@@ -746,19 +747,25 @@ def device_heartbeat(
     - Si NO hay sensores: Cada 1-5 minutos
     - Si HAY sensores: No es necesario (readings ya actualizan last_seen_at)
 
-    **NOTA:**
-    Este endpoint NO requiere autenticación para simplificar el firmware.
-    En producción se podría agregar validación de X-API-Key header.
+    **Autenticación requerida** (mismo contrato que POST /readings):
+    - Header `X-API-Key`: API Key del device
+    - Header `X-Device-EUI`: Device EUI (ej: ESP32_LAB_001)
+
+    Antes de 2026-07-11 este endpoint no exigía autenticación y cualquiera
+    podía spoofear last_seen/metadata de un device; se endureció junto con
+    el fix del firmware que no enviaba X-Device-EUI.
 
     Args:
         heartbeat_data: Datos del heartbeat (device_eui, firmware_version, metadata)
+        device: Device autenticado mediante API Key (inyectado por middleware)
         db: Sesión de base de datos
 
     Returns:
         DeviceHeartbeatResponse: Confirmación del heartbeat con estado del device
 
     Raises:
-        HTTPException 404: Si el device con ese EUI no existe
+        HTTPException 401: Si la API Key es inválida o el device no existe
+        HTTPException 400: Si el device_eui del body no coincide con el del header
 
     Example Request:
         ```json
@@ -788,13 +795,13 @@ def device_heartbeat(
     """
     from datetime import datetime
 
-    # Buscar device por EUI
-    device = db.query(Device).filter(Device.device_eui == heartbeat_data.device_eui).first()
-
-    if not device:
+    # El device ya fue validado por validate_device_api_key.
+    # Verificar que el device_eui del body coincida con el del header
+    # (mismo chequeo que POST /readings)
+    if heartbeat_data.device_eui != device.device_eui:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Device con EUI '{heartbeat_data.device_eui}' no encontrado. Debe crear el device primero."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Device EUI en body ({heartbeat_data.device_eui}) no coincide con header ({device.device_eui})"
         )
 
     # Actualizar last_seen_at (timestamp del heartbeat)

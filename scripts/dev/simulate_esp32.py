@@ -2,12 +2,20 @@
 """
 Script para simular un ESP32 enviando datos al backend.
 
+El backend autentica devices con DOS headers obligatorios:
+X-API-Key + X-Device-EUI. El device debe existir en la DB con esa
+api_key (columna api_key o api_key_encrypted).
+
 Uso:
     python simulate_esp32.py                    # Envía 1 lectura
     python simulate_esp32.py --count 10         # Envía 10 lecturas
     python simulate_esp32.py --interval 5       # Envía lecturas cada 5 segundos (infinito)
+
+    # API key/EUI configurables por variable de entorno:
+    DEVICE_API_KEY=mi_key DEVICE_EUI=ESP32_LAB_001 python simulate_esp32.py
 """
 
+import os
 import requests
 import random
 import time
@@ -15,8 +23,9 @@ import argparse
 from datetime import datetime
 
 # Configuración
-API_URL = "http://localhost:8000/api/v1/readings"
-DEVICE_EUI = "ESP32_LAB_001"
+API_URL = os.getenv("API_URL", "http://localhost:8000/api/v1/readings")
+DEVICE_EUI = os.getenv("DEVICE_EUI", "ESP32_LAB_001")
+DEVICE_API_KEY = os.getenv("DEVICE_API_KEY", "esp32_lab_001_key")
 
 def generate_reading():
     """Genera una lectura simulada con variación realista"""
@@ -33,8 +42,12 @@ def generate_reading():
 
 def send_reading(reading):
     """Envía una lectura al backend"""
+    headers = {
+        "X-API-Key": DEVICE_API_KEY,
+        "X-Device-EUI": DEVICE_EUI,
+    }
     try:
-        response = requests.post(API_URL, json=reading)
+        response = requests.post(API_URL, json=reading, headers=headers, timeout=10)
         if response.status_code == 201:
             data = response.json()
             print(f"✓ Lectura enviada - ID: {data['id']} | Temp: {reading['data_payload']['temp_c']}°C | Humedad: {reading['data_payload']['humidity_pct']}%")

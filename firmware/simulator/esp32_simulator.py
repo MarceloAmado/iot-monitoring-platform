@@ -102,10 +102,11 @@ class ESP32Simulator:
             # timestamp se genera en backend si no se proporciona
         }
 
-        # Headers
+        # Headers: el backend exige X-API-Key Y X-Device-EUI (sin el EUI → 422)
         headers = {
             "Content-Type": "application/json",
-            "X-API-Key": self.api_key
+            "X-API-Key": self.api_key,
+            "X-Device-EUI": self.device_eui,
         }
 
         # URL completa
